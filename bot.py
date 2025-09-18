@@ -4,7 +4,7 @@ import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import urllib.parse as up
-from aiogram import Bot, Dispatcher, Router, types, F
+from aiogram import Bot, Dispatcher, Router, types
 from aiogram.filters import Command
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
@@ -76,11 +76,16 @@ router = Router()
 # -------------------------------
 @router.message(Command("start"))
 async def start_cmd(message: types.Message):
-    await message.answer("САЛАМ АЛЕЙКУМ БРАААТ 🤲🤲 ЭТО БОТ ДЕЛА КАК ЗАКАЗЫВАЙ ПРЕДМЕТ КОТО МОЖ ДОБУТЬ ВЫЖИВАНИЕ, КАСТРАЦИЯ МЫШЬ СЕЙЧАС НЕТ БРАТ, ПОТОМ БУДЕТ АЛЛАХ ЗНАЕТ. ЗАКАЗ /order БРАТИШЬКААА")
+    await message.answer(
+        "САЛАМ АЛЕЙКУМ БРАААТ 🤲🤲 ЭТО БОТ ДЕЛА КАК ЗАКАЗЫВАЙ ПРЕДМЕТ КОТО МОЖ ДОБУТЬ ВЫЖИВАНИЕ, "
+        "КАСТРАЦИЯ МЫШЬ СЕЙЧАС НЕТ БРАТ, ПОТОМ БУДЕТ АЛЛАХ ЗНАЕТ. ЗАКАЗ /order БРАТИШЬКААА"
+    )
 
 @router.message(Command("order"))
 async def order_cmd(message: types.Message, state: FSMContext):
-    await message.answer("БРААТ, КАКОЙ ПРЕДМЕТ ТЫ ХОЧ?? 🗿 ПИШИ НАЗВАНИЕ ТОЧНО КАК В ИГРА БЕЗ ФАНТАЗИЯ, НЕ УМНИЧАЙ")
+    await message.answer(
+        "БРААТ, КАКОЙ ПРЕДМЕТ ТЫ ХОЧ?? 🗿 ПИШИ НАЗВАНИЕ ТОЧНО КАК В ИГРА БЕЗ ФАНТАЗИЯ, НЕ УМНИЧАЙ"
+    )
     await state.set_state(OrderState.waiting_for_item)
 
 @router.message(OrderState.waiting_for_item)
@@ -111,10 +116,15 @@ async def process_quantity(message: types.Message, state: FSMContext):
     cur.close()
     conn.close()
 
-    await message.answer(f"📝 ТВОЙ ЗАКАЗ ЗАПИСАЛ БРАТ!\nПРЕДМЕТ: {item}\nКОЛИЧЕСТВО: {quantity}\nЖДИ, МИХАИЛИК СКОРО ЦЕНА СКАЖЕТ, НЕ НЕРВИРОВАЙСЯ")
+    await message.answer(
+        f"📝 ТВОЙ ЗАКАЗ ЗАПИСАЛ БРАТ!\nПРЕДМЕТ: {item}\nКОЛИЧЕСТВО: {quantity}\nЖДИ, МИХАИЛИК СКОРО ЦЕНА СКАЖЕТ, НЕ НЕРВИРОВАЙСЯ"
+    )
     await state.clear()
 
-    await message.bot.send_message(COURIER_ID, f"🚨 НОВЫЙ ЗАКАЗ #{order_id}: {item} x{quantity}\nОТ КЛИЕНТ {message.from_user.id}, ДВИЖЕНИЕ НАДО СДЕЛАТЬ БЫСТРО")
+    await message.bot.send_message(
+        COURIER_ID,
+        f"🚨 НОВЫЙ ЗАКАЗ #{order_id}: {item} x{quantity}\nОТ КЛИЕНТ {message.from_user.id}, ДВИЖЕНИЕ НАДО СДЕЛАТЬ БЫСТРО"
+    )
 
 # -------------------------------
 # Курьер цену ставит
@@ -143,7 +153,10 @@ async def answer_cmd(message: types.Message):
         conn.close()
         return
 
-    cur.execute("UPDATE orders SET price = %s, status = %s WHERE id = %s", (price, "waiting_user_confirm", order_id))
+    cur.execute(
+        "UPDATE orders SET price = %s, status = %s WHERE id = %s",
+        (price, "waiting_user_confirm", order_id)
+    )
     conn.commit()
     cur.close()
     conn.close()
@@ -154,16 +167,22 @@ async def answer_cmd(message: types.Message):
             [InlineKeyboardButton(text="ИДИ НАХУЙ ДОРОГА 💸❌", callback_data=f"reject_{order_id}")]
         ]
     )
-    await message.bot.send_message(row["user_id"], f"💰 БРАТ, ЦЕНА ГОТОВА: {price} АЛМАЗНЫХ МОНЕТ ЗА {row['quantity']} ШТУКА. НОРМАЛЬНО??", reply_markup=keyboard)
-    await message.answer("📨 ЦЕНА ОТПРАВИЛ КЛИЕНТУ, ВСЕ КРАСОТА")
+
+    await message.bot.send_message(
+        row["user_id"],
+        f"💰 БРАТ, ЦЕНА ГОТОВА: {price} АЛМАЗНЫХ МОНЕТ ЗА {row['quantity']} ШТУКА. НОРМАЛЬНО??",
+        reply_markup=keyboard
+    )
+    await message.answer("📨 ЦЕНА ОТПРАВИЛ КЛИЕНТУ, ВСЕ ПО КРАСОТЕ")
 
 # -------------------------------
 # Обработчики кнопок
 # -------------------------------
 @router.callback_query(lambda c: c.data and c.data.startswith("accept_"))
 async def accept_order_callback(callback: types.CallbackQuery):
-    order_id = int(callback.data.split("_")[1])
+    await callback.answer("Подтверждаю заказ...", show_alert=False)
 
+    order_id = int(callback.data.split("_")[1])
     conn = get_conn()
     cur = conn.cursor()
     cur.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
@@ -181,13 +200,16 @@ async def accept_order_callback(callback: types.CallbackQuery):
     conn.close()
 
     await callback.message.edit_text(f"✅ БРАТ, ТЫ ПОДТВЕРДИЛ ЗАКАЗ #{order_id}")
-    await callback.answer("Ты подтвердил заказ ТЕПЕРЬ ОТПРАВЛЯЙ ДЕНЬГИ ЧЕРЕЗ POST BOX К Rondet курьер, БРАТ 👍")
-    await callback.bot.send_message(COURIER_ID, f"📨 БРАТ, КЛИЕНТ ПОДТВЕРДИЛ ЗАКАЗ #{order_id}, МОЖНО ВЕЗТИ!")
+    await callback.bot.send_message(
+        COURIER_ID,
+        f"📨 БРАТ, КЛИЕНТ ПОДТВЕРДИЛ ЗАКАЗ #{order_id}, МОЖНО ВЕЗТИ!"
+    )
 
 @router.callback_query(lambda c: c.data and c.data.startswith("reject_"))
 async def reject_order_callback(callback: types.CallbackQuery):
-    order_id = int(callback.data.split("_")[1])
+    await callback.answer("Отклоняю заказ...", show_alert=False)
 
+    order_id = int(callback.data.split("_")[1])
     conn = get_conn()
     cur = conn.cursor()
     cur.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
@@ -205,8 +227,10 @@ async def reject_order_callback(callback: types.CallbackQuery):
     conn.close()
 
     await callback.message.edit_text(f"❌ БРАТ, ТЫ ОТМЕНИЛ ЗАКАЗ #{order_id}")
-    await callback.answer("Заказ отклонен")
-    await callback.bot.send_message(COURIER_ID, f"📨 БРАТ, КЛИЕНТ ОТМЕНИЛ ЗАКАЗ #{order_id}")
+    await callback.bot.send_message(
+        COURIER_ID,
+        f"📨 БРАТ, КЛИЕНТ ОТМЕНИЛ ЗАКАЗ #{order_id}"
+    )
 
 # -------------------------------
 # Деньги пришли
@@ -222,10 +246,15 @@ async def money_done_cmd(message: types.Message):
 
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM orders WHERE user_id = %s AND status = %s ORDER BY id DESC LIMIT 1", (message.from_user.id, "accepted"))
+    cur.execute(
+        "SELECT * FROM orders WHERE user_id = %s AND status = %s ORDER BY id DESC LIMIT 1",
+        (message.from_user.id, "accepted")
+    )
     row = cur.fetchone()
     if not row:
         await message.answer("ЭЭ БРАТ 🤔 У ТЕБЯ ЗАКАЗ НЕТ АКТИВНЫЙ, ЧЕ МУТИШЬ?")
+        cur.close()
+        conn.close()
         return
 
     cur.execute("UPDATE orders SET status = %s WHERE id = %s", ("paid", row["id"]))
@@ -234,7 +263,10 @@ async def money_done_cmd(message: types.Message):
     conn.close()
 
     await message.answer("💵 ДЕНЬГА ПОЛУЧИЛ Я, БРАТ! ЖДИ ПОСЫЛКА, СКОРО ПРИДЕТ 🚚")
-    await message.bot.send_message(COURIER_ID, f"🔥 ДЕНЬГА ОТ {message.from_user.id} ({amount} МОНЕТ). БРАТ, ГАЗУЙ НАХУЙ, ПОСЫЛКА ВЕЗИ БЫСТРО!")
+    await message.bot.send_message(
+        COURIER_ID,
+        f"🔥 ДЕНЬГА ОТ {message.from_user.id} ({amount} МОНЕТ). БРАТ, ГАЗУЙ НАХУЙ, ПОСЫЛКА ВЕЗИ БЫСТРО!"
+    )
 
 # -------------------------------
 # Доставка
@@ -258,6 +290,8 @@ async def done_cmd(message: types.Message):
 
     if not row:
         await message.answer("ЭЭЭ БРАТ 😡 ЗАКАЗ ТАКОЙ НЕТУ, ТЫ ЧТО ПРИДУМАЛ?")
+        cur.close()
+        conn.close()
         return
 
     cur.execute("UPDATE orders SET status = %s WHERE id = %s", ("delivered", order_id))
@@ -285,6 +319,7 @@ async def on_startup():
 @app.post("/webhook")
 async def webhook(request: Request):
     update = await request.json()
+    logging.info(f"UPDATE RECEIVED: {update}")  # <-- лог апдейтов
     await dp.feed_raw_update(bot, update)
     return {"status": "ok"}
 
