@@ -11,7 +11,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 # -------------------------------
 # Настройка брат
 # -------------------------------
-TOKEN = "7975483527:AAFdbEe21PWHWM95uEiN_5DXaOoP1KMclc0"
+TOKEN = "8400963211:AAHGgS1GvY34nlkzWVb7XHPkh1CzP_Jwj24"
 COURIER_ID = 1452105851  # Курьер-брат
 DB_URL = "postgresql://lol_bot_mine_user:zaNVubL3czJHIQcdZWK1TNRMiBj0BAf9@dpg-d361tfnfte5s739cd29g-a.oregon-postgres.render.com/lol_bot_mine"
 
@@ -208,3 +208,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
