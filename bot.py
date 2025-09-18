@@ -15,13 +15,13 @@ import uvicorn
 # -------------------------------
 # Настройка
 # -------------------------------
-TOKEN = "8400963211:AAEau9lHdOK6SOCOAyykOEkWLswxs3JS42g"
-COURIER_ID = 1452105851
+TOKEN = os.getenv("BOT_TOKEN", "8400963211:AAEau9lHdOK6SOCOAyykOEkWLswxs3JS42g")
+COURIER_ID = int(os.getenv("COURIER_ID", 1452105851))
 DB_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://lol_bot_mine_user:zaNVubL3czJHIQcdZWK1TNRMiBj0BAf9@dpg-d361tfnfte5s739cd29g-a.oregon-postgres.render.com/lol_bot_mine"
 )
-WEBHOOK_URL = "https://mine-bot-ufhg.onrender.com/webhook"
+WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://mine-bot-ufhg.onrender.com/webhook")
 WEBAPP_HOST = "0.0.0.0"
 WEBAPP_PORT = int(os.getenv("PORT", 8000))
 
@@ -66,7 +66,7 @@ class OrderState(StatesGroup):
     waiting_for_quantity = State()
 
 # -------------------------------
-# Роутер
+# Router
 # -------------------------------
 router = Router()
 
@@ -77,27 +77,27 @@ router = Router()
 async def start_cmd(message: types.Message):
     await message.answer(
         "САЛАМ АЛЕЙКУМ БРАААТ 🤲\n"
-        "ЭТО БОТ ДЕЛА КАК ЗАКАЗЫВАЙ ПРЕДМЕТ.\n"
+        "ЭТО БОТ ДЛЯ ЗАКАЗОВ.\n"
         "Заказ → /order"
     )
 
 @router.message(Command("order"))
 async def order_cmd(message: types.Message, state: FSMContext):
-    await message.answer("БРААТ, КАКОЙ ПРЕДМЕТ ТЫ ХОЧ?? 🗿")
+    await message.answer("БРААТ, КАКОЙ ПРЕДМЕТ ТЫ ХОЧЕШЬ? 🗿")
     await state.set_state(OrderState.waiting_for_item)
 
 @router.message(OrderState.waiting_for_item)
 async def process_item(message: types.Message, state: FSMContext):
     await state.update_data(item=message.text.strip())
-    await message.answer("СКОЛЬКО ШТУКА НАДО ТЕБЕ, БРАТ?? ЦИФРА ПИШИ")
+    await message.answer("СКОЛЬКО ШТУК ТЕБЕ НАДО, БРАТ? ЦИФРА ПИШИ")
     await state.set_state(OrderState.waiting_for_quantity)
 
 @router.message(OrderState.waiting_for_quantity)
 async def process_quantity(message: types.Message, state: FSMContext):
     try:
         quantity = int(message.text.strip())
-    except:
-        await message.answer("ЭЭЭ БРАТ 🤦‍♂️ ТЫ ЦИФРА ПИШИ, НАПРИМЕР: 10")
+    except ValueError:
+        await message.answer("ЭЭЭ БРАТ 🤦‍♂️ ПИШИ ЦИФРУ, НАПРИМЕР: 10")
         return
 
     data = await state.get_data()
@@ -114,7 +114,7 @@ async def process_quantity(message: types.Message, state: FSMContext):
     cur.close()
     conn.close()
 
-    await message.answer(f"📝 ЗАКАЗ ЗАПИСАЛ!\n{item} x{quantity}")
+    await message.answer(f"📝 ЗАКАЗ ЗАПИСАН!\n{item} x{quantity}")
     await state.clear()
 
     await message.bot.send_message(
@@ -134,7 +134,7 @@ async def answer_cmd(message: types.Message):
         _, order_id, price = message.text.split()
         order_id = int(order_id)
         price = int(price)
-    except:
+    except ValueError:
         await message.answer("Формат: /answer order_id price")
         return
 
@@ -143,7 +143,7 @@ async def answer_cmd(message: types.Message):
     cur.execute("SELECT * FROM orders WHERE id = %s AND status = %s", (order_id, "waiting_price"))
     row = cur.fetchone()
     if not row:
-        await message.answer("Такой заказ нету")
+        await message.answer("Такого заказа нет или он уже обработан")
         cur.close()
         conn.close()
         return
@@ -156,12 +156,10 @@ async def answer_cmd(message: types.Message):
     cur.close()
     conn.close()
 
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="ДА ✅", callback_data=f"accept_{order_id}")],
-            [InlineKeyboardButton(text="НЕТ ❌", callback_data=f"reject_{order_id}")]
-        ]
-    )
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="ДА ✅", callback_data=f"accept_{order_id}")],
+        [InlineKeyboardButton(text="НЕТ ❌", callback_data=f"reject_{order_id}")]
+    ])
     await message.bot.send_message(
         row["user_id"],
         f"💰 Цена: {price} монет за {row['quantity']} шт. Нормально?",
@@ -170,7 +168,7 @@ async def answer_cmd(message: types.Message):
     await message.answer("Цена отправлена клиенту")
 
 # -------------------------------
-# Кнопки принять/отклонить
+# Кнопки Принять / Отказ
 # -------------------------------
 @router.callback_query(F.data.startswith("accept_"))
 async def accept_order(callback: types.CallbackQuery):
@@ -204,19 +202,19 @@ async def money_done_cmd(message: types.Message):
     try:
         _, amount = message.text.split()
         amount = int(amount)
-    except:
+    except ValueError:
         await message.answer("Формат: /money_done сумма")
         return
 
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(
-        "SELECT * FROM orders WHERE user_id = %s AND status = %s ORDER BY id DESC LIMIT 1",
-        (message.from_user.id, "accepted")
+        "SELECT * FROM orders WHERE user_id = %s AND status IN ('accepted','waiting_user_confirm') ORDER BY id DESC LIMIT 1",
+        (message.from_user.id,)
     )
     row = cur.fetchone()
     if not row:
-        await message.answer("Нет активного заказа")
+        await message.answer("Нет активного заказа для оплаты")
         cur.close()
         conn.close()
         return
@@ -226,7 +224,7 @@ async def money_done_cmd(message: types.Message):
     cur.close()
     conn.close()
 
-    await message.answer("💵 Деньга получена! Жди доставку 🚚")
+    await message.answer("💵 Деньги получены! Жди доставку 🚚")
     await message.bot.send_message(COURIER_ID, f"🔥 Оплата от {message.from_user.id}: {amount} монет")
 
 # -------------------------------
@@ -236,11 +234,10 @@ async def money_done_cmd(message: types.Message):
 async def done_cmd(message: types.Message):
     if message.from_user.id != COURIER_ID:
         return
-
     try:
         _, order_id = message.text.split()
         order_id = int(order_id)
-    except:
+    except ValueError:
         await message.answer("Формат: /done order_id")
         return
 
@@ -275,7 +272,6 @@ async def on_startup():
     logging.basicConfig(level=logging.INFO)
     init_db()
     await bot.set_webhook(WEBHOOK_URL)
-    logging.info("Bot started and webhook set")
 
 @app.post("/webhook")
 async def webhook(request: Request):
