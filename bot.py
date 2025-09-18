@@ -286,4 +286,5 @@ async def webhook(request: Request):
 # Запуск
 # -------------------------------
 if __name__ == "__main__":
-uvicorn.run("bot:app", host=WEBAPP_HOST, port=WEBAPP_PORT)
+    uvicorn.run("bot:app", host=WEBAPP_HOST, port=WEBAPP_PORT)
+
