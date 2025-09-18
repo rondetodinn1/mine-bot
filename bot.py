@@ -1,7 +1,9 @@
 import asyncio
 import logging
+import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import urllib.parse as up
 from aiogram import Bot, Dispatcher, Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.state import State, StatesGroup
@@ -13,13 +15,27 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 # -------------------------------
 TOKEN = "8400963211:AAHGgS1GvY34nlkzWVb7XHPkh1CzP_Jwj24"
 COURIER_ID = 1452105851  # Курьер-брат
-DB_URL = "postgresql://lol_bot_mine_user:zaNVubL3czJHIQcdZWK1TNRMiBj0BAf9@dpg-d361tfnfte5s739cd29g-a.oregon-postgres.render.com/lol_bot_mine"
+DB_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://lol_bot_mine_user:zaNVubL3czJHIQcdZWK1TNRMiBj0BAf9@dpg-d361tfnfte5s739cd29g-a.oregon-postgres.render.com/lol_bot_mine"
+)
 
 # -------------------------------
 # Подключение к Постгрес, иншаллах
 # -------------------------------
 def get_conn():
-    return psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
+    up.uses_netloc.append("postgres")
+    url = up.urlparse(DB_URL)
+
+    return psycopg2.connect(
+        database=url.path[1:],   # без первого "/"
+        user=url.username,
+        password=url.password,
+        host=url.hostname,
+        port=url.port or 5432,
+        sslmode="require",
+        cursor_factory=RealDictCursor
+    )
 
 def init_db():
     conn = get_conn()
@@ -194,7 +210,6 @@ async def done_cmd(message: types.Message):
     await message.bot.send_message(row["user_id"], "📦 БРААТ! ПОСЫЛКА ПРИЕХАЛА, БЕРИ СВОЙ ШТУКА 🙌")
     await message.answer(f"✅ ЗАКАЗ #{order_id} ЗАКРЫТ, БРАТ, ВСЕ ПО КРАСОТЕ")
 
-
 # -------------------------------
 # Запуск
 # -------------------------------
@@ -208,4 +223,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
