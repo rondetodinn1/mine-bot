@@ -13,7 +13,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 # -------------------------------
 # Настройка брат
 # -------------------------------
-TOKEN = os.getenv("BOT_TOKEN", "YOUR_TOKEN_HERE")
+TOKEN = os.getenv("BOT_TOKEN", "8400963211:AAHGgS1GvY34nlkzWVb7XHPkh1CzP_Jwj24")
 COURIER_ID = int(os.getenv("COURIER_ID", "1452105851"))
 
 DB_URL = os.getenv(
@@ -272,3 +272,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
