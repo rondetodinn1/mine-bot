@@ -5,7 +5,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import urllib.parse as up
 from aiogram import Bot, Dispatcher, Router, types
-from aiogram.filters import Command
+from aiogram.filters import Command, Text
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -22,7 +22,7 @@ DB_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://lol_bot_mine_user:zaNVubL3czJHIQcdZWK1TNRMiBj0BAf9@dpg-d361tfnfte5s739cd29g-a.oregon-postgres.render.com/lol_bot_mine"
 )
-WEBHOOK_URL = "https://mine-bot-16bl.onrender.com"
+WEBHOOK_URL = "https://mine-bot-16bl.onrender.com/webhook"
 WEBAPP_HOST = "0.0.0.0"
 WEBAPP_PORT = int(os.getenv("PORT", 8000))
 
@@ -177,9 +177,9 @@ async def answer_cmd(message: types.Message):
     await message.answer("📨 ЦЕНА ОТПРАВИЛ КЛИЕНТУ, ВСЕ ПО КРАСОТЕ")
 
 # -------------------------------
-# Обработчики кнопок
+# Обработчики кнопок (ИСПРАВЛЕНО)
 # -------------------------------
-@router.callback_query(lambda c: c.data and c.data.startswith("accept_"))
+@router.callback_query(Text(startswith="accept_"))
 async def accept_order_callback(callback: types.CallbackQuery):
     await callback.answer("Подтверждаю заказ...", show_alert=False)
 
@@ -206,7 +206,7 @@ async def accept_order_callback(callback: types.CallbackQuery):
         f"📨 БРАТ, КЛИЕНТ ПОДТВЕРДИЛ ЗАКАЗ #{order_id}, МОЖНО ВЕЗТИ!"
     )
 
-@router.callback_query(lambda c: c.data and c.data.startswith("reject_"))
+@router.callback_query(Text(startswith="reject_"))
 async def reject_order_callback(callback: types.CallbackQuery):
     await callback.answer("Отклоняю заказ...", show_alert=False)
 
@@ -330,4 +330,3 @@ async def webhook(request: Request):
 # -------------------------------
 if __name__ == "__main__":
     uvicorn.run("bot:app", host=WEBAPP_HOST, port=WEBAPP_PORT)
-
