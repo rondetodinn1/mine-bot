@@ -139,6 +139,8 @@ async def answer_cmd(message: types.Message):
 
     if not row:
         await message.answer("ЭЭ БРАТ 🤨 ТАКОЙ ЗАКАЗ НЕТУ, ТЫ ВРУН?")
+        cur.close()
+        conn.close()
         return
 
     cur.execute("UPDATE orders SET price = %s, status = %s WHERE id = %s", (price, "waiting_user_confirm", order_id))
@@ -149,11 +151,62 @@ async def answer_cmd(message: types.Message):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="ДААА БРАТ ✅", callback_data=f"accept_{order_id}")],
-            [InlineKeyboardButton(text="ИДИ НАХУЙ ДОРОГА 💸❌", callback_data="reject")]
+            [InlineKeyboardButton(text="ИДИ НАХУЙ ДОРОГА 💸❌", callback_data=f"reject_{order_id}")]
         ]
     )
-    await message.bot.send_message(row["user_id"], f"💰 БРАТ, ЦЕНА ГОТОВА: {price} МОНЕТ ЗА {row['quantity']} ШТУКА. НОРМАЛЬНО??", reply_markup=keyboard)
+    await message.bot.send_message(row["user_id"], f"💰 БРАТ, ЦЕНА ГОТОВА: {price} АЛМАЗНЫХ МОНЕТ ЗА {row['quantity']} ШТУКА. НОРМАЛЬНО??", reply_markup=keyboard)
     await message.answer("📨 ЦЕНА ОТПРАВИЛ КЛИЕНТУ, ВСЕ КРАСОТА")
+
+# -------------------------------
+# Обработчики кнопок
+# -------------------------------
+@router.callback_query(lambda c: c.data and c.data.startswith("accept_"))
+async def accept_order_callback(callback: types.CallbackQuery):
+    order_id = int(callback.data.split("_")[1])
+
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
+    row = cur.fetchone()
+
+    if not row:
+        await callback.answer("ЭЭ БРАТ 🤨 ЗАКАЗА НЕТ")
+        cur.close()
+        conn.close()
+        return
+
+    cur.execute("UPDATE orders SET status = %s WHERE id = %s", ("accepted", order_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    await callback.message.edit_text(f"✅ БРАТ, ТЫ ПОДТВЕРДИЛ ЗАКАЗ #{order_id}")
+    await callback.answer("Ты подтвердил заказ ТЕПЕРЬ ОТПРАВЛЯЙ ДЕНЬГИ ЧЕРЕЗ POST BOX К Rondet курьер, БРАТ 👍")
+    await callback.bot.send_message(COURIER_ID, f"📨 БРАТ, КЛИЕНТ ПОДТВЕРДИЛ ЗАКАЗ #{order_id}, МОЖНО ВЕЗТИ!")
+
+@router.callback_query(lambda c: c.data and c.data.startswith("reject_"))
+async def reject_order_callback(callback: types.CallbackQuery):
+    order_id = int(callback.data.split("_")[1])
+
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
+    row = cur.fetchone()
+
+    if not row:
+        await callback.answer("ЭЭ БРАТ 🤨 ЗАКАЗА НЕТ")
+        cur.close()
+        conn.close()
+        return
+
+    cur.execute("UPDATE orders SET status = %s WHERE id = %s", ("rejected", order_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    await callback.message.edit_text(f"❌ БРАТ, ТЫ ОТМЕНИЛ ЗАКАЗ #{order_id}")
+    await callback.answer("Заказ отклонен")
+    await callback.bot.send_message(COURIER_ID, f"📨 БРАТ, КЛИЕНТ ОТМЕНИЛ ЗАКАЗ #{order_id}")
 
 # -------------------------------
 # Деньги пришли
@@ -240,17 +293,3 @@ async def webhook(request: Request):
 # -------------------------------
 if __name__ == "__main__":
     uvicorn.run("bot:app", host=WEBAPP_HOST, port=WEBAPP_PORT)
-import asyncio
-import logging
-import os
-import psycopg2
-from psycopg2.extras import RealDictCursor
-import urllib.parse as up
-from aiogram import Bot, Dispatcher, Router, types, F
-from aiogram.filters import Command
-from aiogram.fsm.state import State, StatesGroup
-from aiogram.fsm.context import FSMContext
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from fastapi import FastAPI, Request
-import uvicorn
-
