@@ -253,3 +253,4 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from fastapi import FastAPI, Request
 import uvicorn
+
