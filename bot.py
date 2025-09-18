@@ -8,6 +8,7 @@ from aiogram import Bot, Dispatcher, Router, types
 from aiogram.filters import Command
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from fastapi import FastAPI, Request
 import uvicorn
@@ -307,7 +308,8 @@ async def done_cmd(message: types.Message):
 # -------------------------------
 app = FastAPI()
 bot = Bot(token=TOKEN)
-dp = Dispatcher()
+storage = MemoryStorage()
+dp = Dispatcher(storage=storage)
 dp.include_router(router)
 
 @app.on_event("startup")
@@ -319,7 +321,7 @@ async def on_startup():
 @app.post("/webhook")
 async def webhook(request: Request):
     update = await request.json()
-    logging.info(f"UPDATE RECEIVED: {update}")  # <-- лог апдейтов
+    logging.info(f"UPDATE RECEIVED: {update}")
     await dp.feed_raw_update(bot, update)
     return {"status": "ok"}
 
