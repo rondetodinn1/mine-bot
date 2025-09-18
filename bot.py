@@ -9,6 +9,7 @@ from aiogram.filters import Command
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from fastapi import FastAPI, Request
 
 # -------------------------------
 # Настройка брат
@@ -287,5 +288,6 @@ async def webhook(request: Request):
 # -------------------------------
 if __name__ == "__main__":
     uvicorn.run("bot:app", host=WEBAPP_HOST, port=WEBAPP_PORT)
+
 
 
