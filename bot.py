@@ -19,7 +19,7 @@ DB_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://lol_bot_mine_user:zaNVubL3czJHIQcdZWK1TNRMiBj0BAf9@dpg-d361tfnfte5s739cd29g-a.oregon-postgres.render.com/lol_bot_mine"
 )
-WEBHOOK_URL = "https://mine-bot-ntqg.onrender.com/webhook"
+WEBHOOK_URL = "https://mine-bot-ufhg.onrender.com/webhook"
 WEBAPP_HOST = "0.0.0.0"
 WEBAPP_PORT = int(os.getenv("PORT", 8000))
 
@@ -287,4 +287,5 @@ async def webhook(request: Request):
 # -------------------------------
 if __name__ == "__main__":
     uvicorn.run("bot:app", host=WEBAPP_HOST, port=WEBAPP_PORT)
+
 
