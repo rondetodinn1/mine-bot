@@ -5,7 +5,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import urllib.parse as up
 from aiogram import Bot, Dispatcher, Router, types
-from aiogram.filters import Command, Text
+from aiogram.filters import Command
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -330,3 +330,4 @@ async def webhook(request: Request):
 # -------------------------------
 if __name__ == "__main__":
     uvicorn.run("bot:app", host=WEBAPP_HOST, port=WEBAPP_PORT)
+
