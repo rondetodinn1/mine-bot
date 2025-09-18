@@ -13,13 +13,15 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 # -------------------------------
 # Настройка брат
 # -------------------------------
-TOKEN = os.getenv("BOT_TOKEN", "8400963211:AAHGgS1GvY34nlkzWVb7XHPkh1CzP_Jwj24")
-COURIER_ID = int(os.getenv("COURIER_ID", "1452105851"))
-
+TOKEN = "8400963211:AAEau9lHdOK6SOCOAyykOEkWLswxs3JS42g"
+COURIER_ID = 1452105851
 DB_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://lol_bot_mine_user:zaNVubL3czJHIQcdZWK1TNRMiBj0BAf9@dpg-d361tfnfte5s739cd29g-a.oregon-postgres.render.com/lol_bot_mine"
 )
+WEBHOOK_URL = "https://mine-bot-ntqg.onrender.com/webhook"
+WEBAPP_HOST = "0.0.0.0"
+WEBAPP_PORT = int(os.getenv("PORT", 8000))
 
 # -------------------------------
 # Подключение к Постгрес
@@ -54,7 +56,7 @@ def init_db():
     conn.commit()
     cur.close()
     conn.close()
-
+    
 # -------------------------------
 # Состояния
 # -------------------------------
@@ -260,16 +262,28 @@ async def done_cmd(message: types.Message):
     await message.answer(f"✅ Заказ #{order_id} закрыт")
 
 # -------------------------------
-# Запуск
+# FastAPI + Webhook
 # -------------------------------
-async def main():
+app = FastAPI()
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
+dp.include_router(router)
+
+@app.on_event("startup")
+async def on_startup():
     logging.basicConfig(level=logging.INFO)
     init_db()
-    bot = Bot(token=TOKEN)
-    dp = Dispatcher()
-    dp.include_router(router)
-    await dp.start_polling(bot)
+    await bot.set_webhook(WEBHOOK_URL)
 
+@app.post("/webhook")
+async def webhook(request: Request):
+    update = await request.json()
+    logging.info(f"UPDATE RECEIVED: {update}")  # <-- лог апдейтов
+    await dp.feed_raw_update(bot, update)
+    return {"status": "ok"}
+
+# -------------------------------
+# Запуск
+# -------------------------------
 if __name__ == "__main__":
-    asyncio.run(main())
-
+uvicorn.run("bot:app", host=WEBAPP_HOST, port=WEBAPP_PORT)
