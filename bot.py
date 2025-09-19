@@ -71,25 +71,53 @@ class OrderState(StatesGroup):
 router = Router()
 
 # -------------------------------
-# Команды
+# Команда /help
+# -------------------------------
+@router.message(Command("help"))
+async def help_cmd(message: types.Message):
+    if message.from_user.id == COURIER_ID:
+        # Для админа
+        text = (
+            "⚙️ <b>Команды администратора</b> ⚙️\n\n"
+            "/answer <id> <цена> — установить цену на заказ\n"
+            "/done <id> — отметить заказ доставленным\n"
+            "/admin_cancel <id> — отменить заказ\n"
+            "/help — показать это меню"
+        )
+    else:
+        # Для пользователя
+        text = (
+            "📖 <b>Команды клиента</b> 📖\n\n"
+            "/order — сделать заказ\n"
+            "/money_done <сумма> — подтвердить оплату\n"
+            "/cancel — отменить свой последний заказ\n"
+            "/help — показать это меню"
+        )
+    await message.answer(text, parse_mode="HTML")
+
+# -------------------------------
+# Команда /start
 # -------------------------------
 @router.message(Command("start"))
 async def start_cmd(message: types.Message):
     await message.answer(
-        "САЛАМ АЛЕЙКУМ БРАААТ 🤲\n"
-        "ЭТО БОТ ДЛЯ ЗАКАЗОВ.\n"
-        "Заказ → /order"
+        "👋 Привет, брат!\n\n"
+        "Я бот для заказов.\n"
+        "Напиши /help чтобы увидеть доступные команды."
     )
 
+# -------------------------------
+# Команда /order
+# -------------------------------
 @router.message(Command("order"))
 async def order_cmd(message: types.Message, state: FSMContext):
-    await message.answer("БРААТ, КАКОЙ ПРЕДМЕТ ТЫ ХОЧЕШЬ? 🗿")
+    await message.answer("📦 Что хочешь заказать, брат?")
     await state.set_state(OrderState.waiting_for_item)
 
 @router.message(OrderState.waiting_for_item)
 async def process_item(message: types.Message, state: FSMContext):
     await state.update_data(item=message.text.strip())
-    await message.answer("СКОЛЬКО ШТУК ТЕБЕ НАДО, БРАТ? ЦИФРА ПИШИ")
+    await message.answer("🔢 Сколько штук тебе нужно?")
     await state.set_state(OrderState.waiting_for_quantity)
 
 @router.message(OrderState.waiting_for_quantity)
@@ -97,7 +125,7 @@ async def process_quantity(message: types.Message, state: FSMContext):
     try:
         quantity = int(message.text.strip())
     except ValueError:
-        await message.answer("ЭЭЭ БРАТ 🤦‍♂️ ПИШИ ЦИФРУ, НАПРИМЕР: 10")
+        await message.answer("❌ Введи число, например: 10")
         return
 
     data = await state.get_data()
@@ -114,12 +142,12 @@ async def process_quantity(message: types.Message, state: FSMContext):
     cur.close()
     conn.close()
 
-    await message.answer(f"📝 ЗАКАЗ ЗАПИСАН!\n{item} x{quantity}")
+    await message.answer(f"✅ Заказ #{order_id} создан!\n{item} x{quantity}")
     await state.clear()
 
     await message.bot.send_message(
         COURIER_ID,
-        f"🚨 НОВЫЙ ЗАКАЗ #{order_id}: {item} x{quantity}\nОТ {message.from_user.id}"
+        f"🚨 Новый заказ #{order_id}: {item} x{quantity}\nОт пользователя {message.from_user.id}"
     )
 
 # -------------------------------
@@ -135,7 +163,7 @@ async def answer_cmd(message: types.Message):
         order_id = int(order_id)
         price = int(price)
     except ValueError:
-        await message.answer("Формат: /answer order_id price")
+        await message.answer("❌ Формат: /answer order_id price")
         return
 
     conn = get_conn()
@@ -143,7 +171,7 @@ async def answer_cmd(message: types.Message):
     cur.execute("SELECT * FROM orders WHERE id = %s AND status = %s", (order_id, "waiting_price"))
     row = cur.fetchone()
     if not row:
-        await message.answer("Такого заказа нет или он уже обработан")
+        await message.answer("❌ Такого заказа нет или он уже обработан")
         cur.close()
         conn.close()
         return
@@ -157,18 +185,18 @@ async def answer_cmd(message: types.Message):
     conn.close()
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="ДА ✅", callback_data=f"accept_{order_id}")],
-        [InlineKeyboardButton(text="НЕТ ❌", callback_data=f"reject_{order_id}")]
+        [InlineKeyboardButton(text="✅ Подтвердить", callback_data=f"accept_{order_id}")],
+        [InlineKeyboardButton(text="❌ Отказаться", callback_data=f"reject_{order_id}")]
     ])
     await message.bot.send_message(
         row["user_id"],
-        f"💰 Цена: {price} монет за {row['quantity']} шт. Нормально?",
+        f"💰 Цена: {price} монет за {row['quantity']} шт.\n\nПодтверждаешь?",
         reply_markup=keyboard
     )
-    await message.answer("Цена отправлена клиенту")
+    await message.answer("✅ Цена отправлена клиенту")
 
 # -------------------------------
-# Кнопки Принять / Отказ
+# Кнопки Подтвердить / Отказаться
 # -------------------------------
 @router.callback_query(F.data.startswith("accept_"))
 async def accept_order(callback: types.CallbackQuery):
@@ -179,7 +207,7 @@ async def accept_order(callback: types.CallbackQuery):
     conn.commit()
     cur.close()
     conn.close()
-    await callback.message.edit_text("✅ Заказ принят! Теперь плати /money_done сумма")
+    await callback.message.edit_text("✅ Заказ принят! Теперь оплати: /money_done сумма")
     await callback.answer()
 
 @router.callback_query(F.data.startswith("reject_"))
@@ -191,8 +219,70 @@ async def reject_order(callback: types.CallbackQuery):
     conn.commit()
     cur.close()
     conn.close()
-    await callback.message.edit_text("❌ Ты отказался от заказа")
+    await callback.message.edit_text("❌ Заказ отменён")
     await callback.answer()
+
+# -------------------------------
+# Пользователь отменяет заказ
+# -------------------------------
+@router.message(Command("cancel"))
+async def cancel_cmd(message: types.Message):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT * FROM orders WHERE user_id = %s AND status IN ('waiting_price','waiting_user_confirm','accepted') ORDER BY id DESC LIMIT 1",
+        (message.from_user.id,)
+    )
+    row = cur.fetchone()
+    if not row:
+        await message.answer("❌ У тебя нет активных заказов для отмены")
+        cur.close()
+        conn.close()
+        return
+
+    cur.execute("UPDATE orders SET status = %s WHERE id = %s", ("cancelled", row["id"]))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    await message.answer(f"🚫 Твой заказ #{row['id']} отменён")
+
+    await message.bot.send_message(
+        COURIER_ID,
+        f"⚠️ Пользователь {message.from_user.id} отменил заказ #{row['id']}"
+    )
+
+# -------------------------------
+# Админ отменяет заказ
+# -------------------------------
+@router.message(Command("admin_cancel"))
+async def admin_cancel_cmd(message: types.Message):
+    if message.from_user.id != COURIER_ID:
+        return
+    try:
+        _, order_id = message.text.split()
+        order_id = int(order_id)
+    except ValueError:
+        await message.answer("❌ Формат: /admin_cancel order_id")
+        return
+
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
+    row = cur.fetchone()
+    if not row:
+        await message.answer("❌ Такого заказа нет")
+        cur.close()
+        conn.close()
+        return
+
+    cur.execute("UPDATE orders SET status = %s WHERE id = %s", ("cancelled", order_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    await message.answer(f"🚫 Заказ #{order_id} отменён админом")
+    await message.bot.send_message(row["user_id"], f"⚠️ Твой заказ #{order_id} был отменён админом")
 
 # -------------------------------
 # Деньги пришли
@@ -203,7 +293,7 @@ async def money_done_cmd(message: types.Message):
         _, amount = message.text.split()
         amount = int(amount)
     except ValueError:
-        await message.answer("Формат: /money_done сумма")
+        await message.answer("❌ Формат: /money_done сумма")
         return
 
     conn = get_conn()
@@ -214,7 +304,7 @@ async def money_done_cmd(message: types.Message):
     )
     row = cur.fetchone()
     if not row:
-        await message.answer("Нет активного заказа для оплаты")
+        await message.answer("❌ Нет активного заказа для оплаты")
         cur.close()
         conn.close()
         return
@@ -224,7 +314,7 @@ async def money_done_cmd(message: types.Message):
     cur.close()
     conn.close()
 
-    await message.answer("💵 Деньги получены! Жди доставку 🚚")
+    await message.answer("💵 Оплата принята! Жди доставку 🚚")
     await message.bot.send_message(COURIER_ID, f"🔥 Оплата от {message.from_user.id}: {amount} монет")
 
 # -------------------------------
@@ -238,7 +328,7 @@ async def done_cmd(message: types.Message):
         _, order_id = message.text.split()
         order_id = int(order_id)
     except ValueError:
-        await message.answer("Формат: /done order_id")
+        await message.answer("❌ Формат: /done order_id")
         return
 
     conn = get_conn()
@@ -246,7 +336,7 @@ async def done_cmd(message: types.Message):
     cur.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
     row = cur.fetchone()
     if not row:
-        await message.answer("Такого заказа нет")
+        await message.answer("❌ Такого заказа нет")
         cur.close()
         conn.close()
         return
@@ -256,7 +346,7 @@ async def done_cmd(message: types.Message):
     cur.close()
     conn.close()
 
-    await message.bot.send_message(row["user_id"], "📦 Посылка доставлена!")
+    await message.bot.send_message(row["user_id"], "📦 Твой заказ доставлен! ✅")
     await message.answer(f"✅ Заказ #{order_id} закрыт")
 
 # -------------------------------
